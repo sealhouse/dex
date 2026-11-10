@@ -1,0 +1,8 @@
+# Default config for the sealhouse dex image: in-memory storage and the local
+# password connector with no users. Deployments mount their own config.
+issuer: http://127.0.0.1:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+enablePasswordDB: true
