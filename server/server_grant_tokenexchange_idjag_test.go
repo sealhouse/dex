@@ -204,6 +204,58 @@ func TestTokenExchangeIDJAGUnverifiedEmail(t *testing.T) {
 	require.Empty(t, claims.Email)
 }
 
+func TestTokenExchangeIDJAGAuthTime(t *testing.T) {
+	httpServer, s := newIDJAGTestServer(t, map[string]grants.IDJAGPolicy{
+		"client_1": {AllowedAudiences: []string{idJAGAudience}},
+	}, nil)
+	defer httpServer.Close()
+
+	authTime := time.Now().Add(-time.Hour).Truncate(time.Second)
+	subjectToken, _, err := s.issuer.SignIDToken(t.Context(), tokens.Authorization{
+		Client:      storage.Client{ID: "client_1"},
+		Claims:      storage.Claims{UserID: "0-385-28089-0"},
+		Scopes:      []string{"openid"},
+		ConnectorID: "mock",
+		AuthTime:    authTime,
+	}, "", "")
+	require.NoError(t, err)
+
+	rr := postToken(t, s, httpServer, idJAGRequest(subjectToken))
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	var res tokens.Response
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&res))
+	require.Equal(t, authTime.Unix(), decodeIDJAG(t, res.AccessToken).AuthTime)
+
+	rr = postToken(t, s, httpServer, idJAGRequest(signSubjectToken(t, s, "client_1", "mock", true)))
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&res))
+	require.Zero(t, decodeIDJAG(t, res.AccessToken).AuthTime, "no auth_time in the subject token, none in the ID-JAG")
+}
+
+func TestTokenExchangeIDJAGAudienceClientID(t *testing.T) {
+	httpServer, s := newIDJAGTestServer(t, map[string]grants.IDJAGPolicy{
+		"client_1": {
+			AllowedAudiences:  []string{idJAGAudience, "https://wiki.example/"},
+			AudienceClientIDs: map[string]string{idJAGAudience: "f53f191f9311af35"},
+		},
+	}, nil)
+	defer httpServer.Close()
+
+	subjectToken := signSubjectToken(t, s, "client_1", "mock", true)
+	for audience, want := range map[string]string{
+		idJAGAudience:           "f53f191f9311af35",
+		"https://wiki.example/": "client_1",
+	} {
+		vals := idJAGRequest(subjectToken)
+		vals.Set("audience", audience)
+		rr := postToken(t, s, httpServer, vals)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		var res tokens.Response
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&res))
+		require.Equal(t, want, decodeIDJAG(t, res.AccessToken).ClientID, audience)
+	}
+}
+
 func TestTokenExchangeIDJAGCustomExpiry(t *testing.T) {
 	httpServer, s := newIDJAGTestServer(t, map[string]grants.IDJAGPolicy{
 		"client_1": {AllowedAudiences: []string{idJAGAudience}},

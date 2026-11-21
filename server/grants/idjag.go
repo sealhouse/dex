@@ -33,6 +33,9 @@ type IDJAGConfig struct {
 type IDJAGPolicy struct {
 	AllowedAudiences []string
 	AllowedScopes    []string
+	// AudienceClientIDs maps an audience to the client's ID at that Resource
+	// Authorization Server. Without an entry, client_id is the dex client ID.
+	AudienceClientIDs map[string]string
 }
 
 // IDJAGMetrics counts ID-JAG requests. A nil *IDJAGMetrics records nothing.
@@ -144,6 +147,7 @@ func (g *idJAG) Authorize(ctx context.Context, req *Request, client storage.Clie
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
 		SessionID     string `json:"sid"`
+		AuthTime      int64  `json:"auth_time"`
 	}
 	if err := idToken.Claims(&subjectClaims); err != nil {
 		g.logger.ErrorContext(ctx, "failed to decode subject token claims", "err", err)
@@ -167,11 +171,16 @@ func (g *idJAG) Authorize(ctx context.Context, req *Request, client storage.Clie
 		return nil, deny(reason, &oauth2.Error{Type: oauth2.AccessDenied, Status: http.StatusBadRequest})
 	}
 
+	clientID := client.ID
+	if id, ok := g.config.Policies[client.ID].AudienceClientIDs[audience]; ok {
+		clientID = id
+	}
 	claims := tokens.IDJAGClaims{
 		Subject:  idToken.Subject,
 		Audience: audience,
-		ClientID: client.ID,
+		ClientID: clientID,
 		Scope:    strings.Join(scopes, " "),
+		AuthTime: subjectClaims.AuthTime,
 	}
 	if len(req.Resource) == 1 {
 		claims.Resource = req.Resource[0]
