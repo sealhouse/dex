@@ -154,3 +154,5 @@ require (
 replace github.com/dexidp/dex/api/v2 => ./api/v2
 
 tool entgo.io/ent/cmd/ent
+
+replace github.com/coreos/go-oidc/v3 => github.com/sealhouse/go-oidc/v3 v3.21.1-rhtas.1
