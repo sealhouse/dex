@@ -12,7 +12,7 @@ require (
 )
 
 require (
-	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.8 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/net v0.62.0 // indirect
@@ -25,3 +25,5 @@ require (
 // The example lives in this repository, so it demonstrates this repository's
 // API rather than the last published version of it.
 replace github.com/dexidp/dex/api/v2 => ../api/v2
+
+replace github.com/coreos/go-oidc/v3 => github.com/sealhouse/go-oidc/v3 v3.21.1-rhtas.1
